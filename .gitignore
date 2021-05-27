@@ -1,0 +1,6 @@
+__pycache__/
+.DS_Store
+*.py[cod]
+*$py.class
+spot_test_network_keys
+chatids
