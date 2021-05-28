@@ -47,24 +47,59 @@ class BinanceAPI:
             l.append(s)
         return l
 
-    # BUY/SELL BEGIN 
+    # MARKET BUY BEGIN
+    def __buy_coin(self, bcoin, ammount, opcoin, ordertype):
+        if bcoin + opcoin in self.COINS_SYMBOLS:
+            params = self._order(bcoin + opcoin, ammount, "BUY", ordertype)
+            order = self._post("%s/order" % (self.BASE_URL_V3), params)
+
+            if order.get('msg') is not None:
+                return "Cannot buy %s for %s. Reason: %s" % (bcoin, opcoin, order['msg'])
+            if order.get('status') != 'FILLED':
+                return "Cannot buy %s for %s. Order status: %s" % (bcoin, opcoin, order['status'])
+        
+            return (float(order['executedQty']), bcoin, float(order['cummulativeQuoteQty']), opcoin)
+        elif opcoin + bcoin in self.COINS_SYMBOLS:
+            if ordertype == self.OrderType.MARKET_QUANTITY:
+                return self.sell_coin_for(opcoin, ammount, bcoin)
+            return self.sell_coin(opcoin, ammount, bcoin)
+        return "Cannot buy %s for %s. Reason: Given pair is not listed on Binance." % (bcoin, opcoin)
+
+    def buy_coin(self, bcoin, ammount, opcoin):
+        return self.__buy_coin(bcoin, ammount, opcoin, self.OrderType.MARKET_QUANTITY)
     
-    def buy_coin(bcoin, ammount, opcoin):
-        pass
+    def buy_coin_for(self, bcoin, ammount, opcoin):
+        return self.__buy_coin(bcoin, ammount, opcoin, self.OrderType.MARKET_FOR)
+    # MARKET BUY END
+
+    # MARKET SELL BEGIN
+    def __sell_coin(self, scoin, ammount, bcoin, ordertype):
+        if scoin + bcoin in self.COINS_SYMBOLS:
+            params = self._order(scoin + bcoin, ammount, "SELL", ordertype)
+            order = self._post("%s/order" % (self.BASE_URL_V3), params)
+
+            if order.get('msg') is not None:
+                return "Cannot sell %s for %s. Reason: %s" % (scoin, bcoin, order['msg'])
+            if order.get('status') != 'FILLED':
+                return "Cannot sell %s for %s. Order status: %s" % (scoin, bcoin, order['status']) 
+            
+            return (float(order['cummulativeQuoteQty']), bcoin, float(order['executedQty']), scoin)
+        elif bcoin + scoin in self.COINS_SYMBOLS:
+            if ordertype == self.OrderType.MARKET_QUANTITY:
+                return self.buy_coin_for(bcoin, ammount, scoin)
+            return self.buy_coin(bcoin, ammount, scoin)
+        return "Cannot sell %s for %s. Reason: Given pair is not listed on Binance." % (scoin, bcoin)
+
+    def sell_coin(self, scoin, ammount, bcoin):
+        return self.__sell_coin(scoin, ammount, bcoin, self.OrderType.MARKET_QUANTITY)
     
-    def buy_coin_for(bcoin, ammount, opcoin):
+    def sell_coin_for(self, scoin, ammount, bcoin):
+        return self.__sell_coin(scoin, ammount, bcoin, self.OrderType.MARKET_FOR)
+    # MARKET SELL END
+
+    def limit_sell(self, scoin, ammount, price, bcoin):
         pass
 
-    def sell_coin(scoin, ammount, bcoin):
-        pass
-    
-    def sell_coin_for(scoin, ammout, bcoin):
-        pass
-
-    def limit_sell(scoin, ammount, price, bcoin):
-        pass
-
-    # BUY/SELL END
 
     def _all_symbols(self):
         l = []
@@ -122,5 +157,4 @@ class BinanceAPI:
         params["symbol"] = symbol
         params["side"] = side
 
-
-
+        return params

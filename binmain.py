@@ -1,5 +1,4 @@
 import config
-import time
 from binanceAPI import BinanceAPI
 
 if __name__ == "__main__":
@@ -8,22 +7,28 @@ if __name__ == "__main__":
 
     while True:
         print("\n".join(client.get_wallet()))
-        operation = input("Do you want SELL(s) or BUY(b): ")
-        if operation != "s" and operation != "b":
+        operation = input("Do you want BUY_AMMOUNT(ba), BUY_FOR(bf), SELL_AMMOUNT(sa), SELL_FOR(sf): ")
+        if operation not in ("ba, bf, sa, sf"):
             continue
         
         order = None
         bc = ""
         sc = ""
         q = float(input("Quantity: "))
-        if operation == "s":
-            sc = input("Selled coin name: ")
-            bc = input("For: ")
-            order = client.sell_coin(sc, bc, q)
-        else:
+        if operation == "ba":
             bc = input("Buyed coin name: ")
             sc = input("For: ")
-            order = client.buy_coin(bc, sc, q)
-        
-        if order is not None:
-            print(order)
+            order = client.buy_coin(bc, q, sc)
+        elif operation == "bf":
+            bc = input("Buyed coin name: ")
+            sc = input("For: ")
+            order = client.buy_coin_for(bc, q, sc)
+        if operation == "sa":
+            sc = input("Selled coin name: ")
+            bc = input("For: ")
+            order = client.sell_coin(sc, q, bc)
+        if operation == "sf":
+            sc = input("Selled coin name: ")
+            bc = input("For: ")
+            order = client.sell_coin_for(sc, q, bc)
+        print(order)
