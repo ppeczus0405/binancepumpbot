@@ -8,24 +8,20 @@ from urllib.parse import urlencode
 
 class BinanceAPI:
     
-    #Spot test URLS
     BASE_URL = "https://testnet.binance.vision/api/v1"
     BASE_URL_V3 = "https://testnet.binance.vision/api/v3"
     COINS_SYMBOLS = None
 
 
     class OrderType(Enum):
-        QUANTITY = auto()
-        QUOUTE_ORDER_QTY = auto()
+        LIMIT = auto()
+        MARKET_QUANTITY = auto()
+        MARKET_FOR = auto()
 
     def __init__(self, key, secret):
         self.key = key
         self.secret = secret
-        BinanceAPI.COINS_SYMBOLS = frozenset(self.all_symbols())
-        
-    def get_server_time(self):
-        path = "%s/time" % (self.BASE_URL_V3)
-        return self._get_no_sign(path)
+        BinanceAPI.COINS_SYMBOLS = frozenset(self._all_symbols()) 
 
     def get_open_orders(self):
         return self._get("%s/openOrders" % (self.BASE_URL_V3))
@@ -34,13 +30,6 @@ class BinanceAPI:
         if symbol in self.COINS_SYMBOLS:
             return float(self._get_no_sign("%s/avgPrice" % (self.BASE_URL_V3), {"symbol" : symbol})['price'])
         return -1.0
-
-    def all_symbols(self):
-        l = []
-        exchange_info = self._get_no_sign("%s/exchangeInfo" % (self.BASE_URL_V3))
-        for symbol_dict in exchange_info['symbols']:
-            l.append(symbol_dict['symbol'])
-        return l
     
     def get_coin_amount(self, coin_name="BTC"):
         path = "%s/account" % (self.BASE_URL_V3)
@@ -58,6 +47,32 @@ class BinanceAPI:
             l.append(s)
         return l
 
+    # BUY/SELL BEGIN 
+    
+    def buy_coin(bcoin, ammount, opcoin):
+        pass
+    
+    def buy_coin_for(bcoin, ammount, opcoin):
+        pass
+
+    def sell_coin(scoin, ammount, bcoin):
+        pass
+    
+    def sell_coin_for(scoin, ammout, bcoin):
+        pass
+
+    def limit_sell(scoin, ammount, price, bcoin):
+        pass
+
+    # BUY/SELL END
+
+    def _all_symbols(self):
+        l = []
+        exchange_info = self._get_no_sign("%s/exchangeInfo" % (self.BASE_URL_V3))
+        for symbol_dict in exchange_info['symbols']:
+            l.append(symbol_dict['symbol'])
+        return l
+
     def _get_no_sign(self, path, params={}):
         query = urlencode(params)
         url = "%s?%s" % (path, query)
@@ -65,7 +80,6 @@ class BinanceAPI:
     
     def _sign(self, params={}):
         data = params.copy()
-
         ts = int(1000 * time.time())
         data.update({"timestamp": ts})
         h = urlencode(data)
@@ -91,14 +105,22 @@ class BinanceAPI:
         return requests.post(url, headers=header, data=query, \
             timeout=30, verify=True).json()
 
-    def _order(self, market, quantity, side, ordertype):
+    def _order(self, symbol, ammount, side, ordertype, price = None):
         params = {}
-        if ordertype == self.OrderType.QUANTITY:
-            params["quantity"] = '%.8f' % (quantity)
-        else:
-            params["quoteOrderQty"] = '%.8f' % (quantity)
         params["type"] = "MARKET"
-        params["symbol"] = market
-        params["side"] = side
+
+        if ordertype == self.OrderType.LIMIT:
+            params["type"] = "LIMIT"
+            params["price"] = price
+            params["timeInForce"] = "GTC"
+            params["quantity"] = ammount
+        elif ordertype == self.OrderType.MARKET_FOR:
+            params["quoteOrderQty"] = ammount
+        else:
+            params["quantity"] = ammount
         
-        return params
+        params["symbol"] = symbol
+        params["side"] = side
+
+
+

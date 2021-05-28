@@ -2,7 +2,6 @@ import config
 import time
 from binanceAPI import BinanceAPI
 
-
 if __name__ == "__main__":
     client = BinanceAPI(config.binance_api_key, config.binance_api_secret)
     print("All symbols: %s" % (" ".join(BinanceAPI.COINS_SYMBOLS)))
