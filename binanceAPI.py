@@ -12,7 +12,6 @@ class BinanceAPI:
     BASE_URL_V3 = "https://testnet.binance.vision/api/v3"
     COINS_SYMBOLS = None
 
-
     class OrderType(Enum):
         LIMIT = auto()
         MARKET_QUANTITY = auto()
@@ -25,6 +24,13 @@ class BinanceAPI:
 
     def get_open_orders(self):
         return self._get("%s/openOrders" % (self.BASE_URL_V3))
+    
+    def cancel_all_open_orders(self, fcoin, scoin):
+        symbol = self._get_symbol(fcoin, scoin)
+        if symbol is not False:
+            self._delete("%s/openOrders" % (self.BASE_URL_V3), {"symbol" : symbol})
+            return True
+        return "Given pair of coins is not listed on binance"
 
     def get_price(self, symbol):
         if symbol in self.COINS_SYMBOLS:
@@ -97,9 +103,40 @@ class BinanceAPI:
         return self.__sell_coin(scoin, ammount, bcoin, self.OrderType.MARKET_FOR)
     # MARKET SELL END
 
-    def limit_sell(self, scoin, ammount, price, bcoin):
-        pass
+    # LIMIT ORDERS
+    def __limit_order(self, bcoin, ammount, scoin, price, side):
+        params = dict()
+        trade_pair = ("buy", bcoin, scoin)
+        if bcoin + scoin in self.COINS_SYMBOLS:
+            if side == "BUY":
+                params = self._order(bcoin + scoin, ammount, "BUY", self.OrderType.LIMIT, price)
+            else:
+                params = self._order(bcoin + scoin, ammount * price, "BUY", self.OrderType.LIMIT, 1.0 / price)
+        elif scoin + bcoin in self.COINS_SYMBOLS:
+            if side == "SELL":
+                params = self._order(scoin + bcoin, ammount, "SELL", self.OrderType.LIMIT, price)
+            else:
+                params = self._order(scoin + bcoin, ammount * price, "SELL", self.OrderType.LIMIT, 1.0 / price)
+            trade_pair = ("sell", scoin, bcoin)
+        else:
+            return "Cannot limit %s %s for %s. Reason: Given pair is not listed on Binance" % trade_pair
 
+        order = self._post("%s/order" % (self.BASE_URL_V3), params)
+
+        if order.get('msg') is not None:
+            return "Cannot limit %s %s for %s. Reason: %s" % tuple(list(trade_pair) + [order['msg']])
+        order_status = order.get('status')
+        if order_status != "NEW" and order_status != "FILLED":
+            return "Cannot limit %s %s for %s. Order status: %s" % tuple(list(trade_pair) + [order['status']])
+        
+        return True
+    
+    def limit_buy(self, bcoin, ammount, opcoin, price):
+        return self.__limit_order(bcoin, ammount, opcoin, price, "BUY")
+
+    def limit_sell(self, scoin, ammount, bcoin, price):
+        return self.__limit_order(bcoin, ammount, scoin, price, "SELL")
+    # LIMIT ORDERS END
 
     def _all_symbols(self):
         l = []
@@ -135,9 +172,15 @@ class BinanceAPI:
     def _post(self, path, params={}):
         params.update({"recvWindow": config.recv_window})
         query = urlencode(self._sign(params))
-        url = "%s" % (path)
         header = {"X-MBX-APIKEY": self.key}
-        return requests.post(url, headers=header, data=query, \
+        return requests.post(path, headers=header, data=query, \
+            timeout=30, verify=True).json()
+    
+    def _delete(self, path, params={}):
+        params.update({"recvWindow": config.recv_window})
+        query = urlencode(self._sign(params))
+        header = {"X-MBX-APIKEY": self.key}
+        return requests.delete(path, headers=header, data=query, \
             timeout=30, verify=True).json()
 
     def _order(self, symbol, ammount, side, ordertype, price = None):
@@ -158,3 +201,10 @@ class BinanceAPI:
         params["side"] = side
 
         return params
+
+    def _get_symbol(self, first_coin, second_coin):
+        if first_coin + second_coin in self.COINS_SYMBOLS:
+            return first_coin + second_coin
+        elif second_coin + first_coin in self.COINS_SYMBOLS:
+            return second_coin + first_coin
+        return False
