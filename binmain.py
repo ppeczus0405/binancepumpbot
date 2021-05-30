@@ -9,10 +9,10 @@ if __name__ == "__main__":
         print("\n".join(client.get_wallet()))
         print("Open orders: ")
         print(client.get_open_orders())
-        inp = "Do you want BUY_AMMOUNT(ba), BUY_FOR(bf), SELL_AMMOUNT(sa), SELL_FOR(sf), "
-        input_text = inp + "LIMIT_BUY(lb), LIMIT_SELL(ls), CANCEL_ALL(ca): "
+        inp = "Do you want BUY_AMMOUNT(ba), BUY_FOR(bf), SELL_AMMOUNT(sa), SELL_FOR(sf), GET_PRICE(gp), "
+        input_text = inp + "LIMIT_BUY(lb), LIMIT_SELL(ls), CANCEL_ALL(ca), GET_COIN_AMMOUNT(gc): "
         operation = input(input_text)
-        if operation not in ("ba", "bf", "sa", "sf", "lb", "ls", "ca"):
+        if operation not in ("ba", "bf", "sa", "sf", "lb", "ls", "ca", "gc", "gp"):
             continue
         
         order = None
@@ -53,4 +53,10 @@ if __name__ == "__main__":
         elif operation == "ca":
             sym = input("Symbol: ")
             order = client.cancel_all_open_orders(sym)
+        elif operation == "gc":
+            coin = input("Coin: ")
+            order = client.get_coin_amount(coin)
+        elif operation == "gp":
+            symbol = input("Symbol: ")
+            order = client.get_price(symbol)
         print(order)

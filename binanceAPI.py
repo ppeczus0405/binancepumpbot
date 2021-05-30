@@ -25,8 +25,14 @@ class BinanceAPI:
     def get_open_orders(self):
         return self._get("%s/openOrders" % (self.BASE_URL_V3))
     
-    def cancel_all_open_orders(self, fcoin, scoin):
-        symbol = self._get_symbol(fcoin, scoin)
+    def get_symbol(self, first_coin, second_coin):
+        if first_coin + second_coin in self.COINS_SYMBOLS:
+            return first_coin + second_coin
+        elif second_coin + first_coin in self.COINS_SYMBOLS:
+            return second_coin + first_coin
+        return False
+
+    def cancel_all_open_orders(self, symbol):
         if symbol is not False:
             self._delete("%s/openOrders" % (self.BASE_URL_V3), {"symbol" : symbol})
             return True
@@ -201,10 +207,3 @@ class BinanceAPI:
         params["side"] = side
 
         return params
-
-    def _get_symbol(self, first_coin, second_coin):
-        if first_coin + second_coin in self.COINS_SYMBOLS:
-            return first_coin + second_coin
-        elif second_coin + first_coin in self.COINS_SYMBOLS:
-            return second_coin + first_coin
-        return False

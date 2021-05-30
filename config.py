@@ -9,4 +9,3 @@ coins_to_pump = 1000
 telegram_api_id = 123
 telegram_api_hash = "API_HASH"
 telegram_chat_name = "Patryk Pęczak"
-message_update_time = 0.75
