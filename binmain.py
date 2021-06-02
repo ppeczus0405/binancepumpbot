@@ -51,8 +51,9 @@ if __name__ == "__main__":
             price = float(input("Price: "))
             order = client.limit_sell(sc, q, bc, price)
         elif operation == "ca":
-            sym = input("Symbol: ")
-            order = client.cancel_all_open_orders(sym)
+            fcoin = input("First coin: ")
+            scoin = input("Second coin: ")
+            order = client.cancel_all_open_orders(fcoin, scoin)
         elif operation == "gc":
             coin = input("Coin: ")
             order = client.get_coin_amount(coin)

@@ -24,7 +24,7 @@ class BinanceAPI:
 
     def get_open_orders(self):
         return self._get("%s/openOrders" % (self.BASE_URL_V3))
-    
+
     def get_symbol(self, first_coin, second_coin):
         if first_coin + second_coin in self.COINS_SYMBOLS:
             return first_coin + second_coin
@@ -32,7 +32,8 @@ class BinanceAPI:
             return second_coin + first_coin
         return False
 
-    def cancel_all_open_orders(self, symbol):
+    def cancel_all_open_orders(self, fcoin, scoin):
+        symbol = self.get_symbol(fcoin, scoin)
         if symbol is not False:
             self._delete("%s/openOrders" % (self.BASE_URL_V3), {"symbol" : symbol})
             return True
@@ -67,7 +68,7 @@ class BinanceAPI:
 
             if order.get('msg') is not None:
                 return "Cannot buy %s for %s. Reason: %s" % (bcoin, opcoin, order['msg'])
-            if order.get('status') != 'FILLED':
+            if order.get('status') not in ("PARTIALLY_FILLED", "FILLED"):
                 return "Cannot buy %s for %s. Order status: %s" % (bcoin, opcoin, order['status'])
         
             return (float(order['executedQty']), bcoin, float(order['cummulativeQuoteQty']), opcoin)
@@ -92,9 +93,9 @@ class BinanceAPI:
 
             if order.get('msg') is not None:
                 return "Cannot sell %s for %s. Reason: %s" % (scoin, bcoin, order['msg'])
-            if order.get('status') != 'FILLED':
-                return "Cannot sell %s for %s. Order status: %s" % (scoin, bcoin, order['status']) 
-            
+            if order.get('status') not in ("PARTIALLY_FILLED", "FILLED"):
+                return "Cannot sell %s for %s. Order status: %s" % (scoin, bcoin, order['status'])
+
             return (float(order['cummulativeQuoteQty']), bcoin, float(order['executedQty']), scoin)
         elif bcoin + scoin in self.COINS_SYMBOLS:
             if ordertype == self.OrderType.MARKET_QUANTITY:
@@ -132,7 +133,7 @@ class BinanceAPI:
         if order.get('msg') is not None:
             return "Cannot limit %s %s for %s. Reason: %s" % tuple(list(trade_pair) + [order['msg']])
         order_status = order.get('status')
-        if order_status != "NEW" and order_status != "FILLED":
+        if order_status not in ("NEW", "PARTIALLY_FILLED", "FILLED"):
             return "Cannot limit %s %s for %s. Order status: %s" % tuple(list(trade_pair) + [order['status']])
         
         return True
@@ -190,12 +191,15 @@ class BinanceAPI:
             timeout=30, verify=True).json()
 
     def _order(self, symbol, ammount, side, ordertype, price = None):
+        # TO DO:
+        # Solve FILTER FAILURE: LOT_SIZE problem (tick_size)
+        # Solve FILTER FAILURE: PRICE_FILTER problem (step_size)
         params = {}
         params["type"] = "MARKET"
 
         if ordertype == self.OrderType.LIMIT:
             params["type"] = "LIMIT"
-            params["price"] = price
+            params["price"] = "%0.8f" % (price) 
             params["timeInForce"] = "GTC"
             params["quantity"] = ammount
         elif ordertype == self.OrderType.MARKET_FOR:
