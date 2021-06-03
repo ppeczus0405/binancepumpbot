@@ -13,6 +13,7 @@ telegram_client = TelegramClient("peczi", config.telegram_api_id, config.telegra
 # Telegram section
 async def get_last_messages(chatid, n):
     l = [message.text async for message in telegram_client.iter_messages(chatid, n)]
+    l.reverse()
     return l
 
 async def get_chat_id():
@@ -47,7 +48,7 @@ async def telegram_initialize():
     messages = tuple(await get_last_messages(chatid, 3))
     c = input("3.'%s'\n2.'%s'\n1.'%s'\nThat 3 messages are last in your chatbox?(y or n): " % (messages))
     if c != "y":
-        print("Expected another chat than '%s'. Please verify config file" % (config.telegram_chat_name))
+        print("You expect another chat than '%s'. Please verify config file" % (config.telegram_chat_name))
         return
     
     telegram_client.add_event_handler(message_handler, events.NewMessage(chats=chatid))
@@ -106,10 +107,10 @@ def pump():
     profit = lambda x : x - price if symbol == pumped_coin + config.coin else (1.0 / x) - price
     while not want_to_sell:
         actual_profit = profit(bin_client.get_price(symbol)) * 100
-        inp = input("Actual profit: %f%. Confirm 's' to sell: " % (actual_profit))
+        inp = input("Actual profit: %f%%. Confirm 's' to sell: " % (actual_profit))
         if inp == 's':
             want_to_sell = True
-    bin_client.cancel_all_open_orders(symbol)
+    bin_client.cancel_all_open_orders(pumped_coin, config.coin)
     remaining_ammount = bin_client.get_coin_amount(pumped_coin)
     panic_sell_args = [pumped_coin, remaining_ammount, config.coin]
     panic_sell = bin_client.sell_coin(*panic_sell_args)
@@ -123,6 +124,7 @@ if __name__ == "__main__":
     if(binance_initialize()):
         print("Succesfully initialize binance client")
         get_pumped_coin()
-        pump()
+        if pumped_coin is not None:
+            pump()
     else:
         print("Cannot initialize properly client. Please check your API keys")

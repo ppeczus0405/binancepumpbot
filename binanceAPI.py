@@ -10,7 +10,8 @@ class BinanceAPI:
     
     BASE_URL = "https://testnet.binance.vision/api/v1"
     BASE_URL_V3 = "https://testnet.binance.vision/api/v3"
-    COINS_SYMBOLS = None
+    COINS_SYMBOLS = frozenset()
+    TICK_STEP_DICT = dict()
 
     class OrderType(Enum):
         LIMIT = auto()
@@ -20,7 +21,7 @@ class BinanceAPI:
     def __init__(self, key, secret):
         self.key = key
         self.secret = secret
-        BinanceAPI.COINS_SYMBOLS = frozenset(self._all_symbols()) 
+        BinanceAPI.COINS_SYMBOLS = frozenset(self._get_symbols_fill_filter())
 
     def get_open_orders(self):
         return self._get("%s/openOrders" % (self.BASE_URL_V3))
@@ -145,11 +146,19 @@ class BinanceAPI:
         return self.__limit_order(bcoin, ammount, scoin, price, "SELL")
     # LIMIT ORDERS END
 
-    def _all_symbols(self):
+    def _get_symbols_fill_filter(self):
         l = []
         exchange_info = self._get_no_sign("%s/exchangeInfo" % (self.BASE_URL_V3))
         for symbol_dict in exchange_info['symbols']:
-            l.append(symbol_dict['symbol'])
+            symbol = symbol_dict['symbol']
+            l.append(symbol)
+            tick = step = 0.0
+            for filter_dict in symbol_dict['filters']:
+                if filter_dict['filterType'] == 'PRICE_FILTER':
+                    tick = float(filter_dict['tickSize'])
+                elif filter_dict['filterType'] == 'LOT_SIZE':
+                    step = float(filter_dict['stepSize'])
+            BinanceAPI.TICK_STEP_DICT[symbol] = (tick, step)
         return l
 
     def _get_no_sign(self, path, params={}):
@@ -191,21 +200,35 @@ class BinanceAPI:
             timeout=30, verify=True).json()
 
     def _order(self, symbol, ammount, side, ordertype, price = None):
-        # TO DO:
-        # Solve FILTER FAILURE: LOT_SIZE problem (tick_size)
-        # Solve FILTER FAILURE: PRICE_FILTER problem (step_size)
+        # FILTER FAILURE: LOT_SIZE problem (step_size)
+        # FILTER FAILURE: PRICE_FILTER problem (tick_size)
+        def fix_value_to_pass_filters(val, correction):
+            integer_value = int(val / correction)
+            return integer_value * correction
+        
+        (tick, step) = BinanceAPI.TICK_STEP_DICT[symbol]
+        # For MARKET_FOR order type precision of ammount is price precision
+        if ordertype == self.OrderType.MARKET_FOR:
+            ammount = fix_value_to_pass_filters(ammount, tick)
+        else:
+            ammount = fix_value_to_pass_filters(ammount, step)
+        
+        # For limit order we have to adjust price to filters
+        if price is not None:
+            price = fix_value_to_pass_filters(price, tick)
+        
         params = {}
         params["type"] = "MARKET"
 
         if ordertype == self.OrderType.LIMIT:
             params["type"] = "LIMIT"
-            params["price"] = "%0.8f" % (price) 
+            params["price"] = "%f" % (price)
             params["timeInForce"] = "GTC"
-            params["quantity"] = ammount
+            params["quantity"] = "%f" % (ammount)
         elif ordertype == self.OrderType.MARKET_FOR:
-            params["quoteOrderQty"] = ammount
+            params["quoteOrderQty"] = "%f" % (ammount)
         else:
-            params["quantity"] = ammount
+            params["quantity"] = "%f" % (ammount)
         
         params["symbol"] = symbol
         params["side"] = side
