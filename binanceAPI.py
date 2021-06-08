@@ -23,8 +23,14 @@ class BinanceAPI:
         self.secret = secret
         BinanceAPI.COINS_SYMBOLS = frozenset(self._get_symbols_fill_filter())
 
-    def get_open_orders(self):
-        return self._get("%s/openOrders" % (self.BASE_URL_V3))
+    def get_open_orders_in_str(self):
+        l = []
+        index = 0
+        for order_dict in self._get("%s/openOrders" % (self.BASE_URL_V3)):
+            l.append("#%d: " % (index) + str(order_dict))
+            index = index + 1
+        return "\n".join(l)
+
 
     def get_symbol(self, first_coin, second_coin):
         if first_coin + second_coin in self.COINS_SYMBOLS:
@@ -69,7 +75,8 @@ class BinanceAPI:
 
             if order.get('msg') is not None:
                 return "Cannot buy %s for %s. Reason: %s" % (bcoin, opcoin, order['msg'])
-            if order.get('status') not in ("PARTIALLY_FILLED", "FILLED"):
+            expired_not_buyed = order.get('status') == "EXPIRED" and float(order['executedQty']) == 0.0
+            if order.get('status') not in ("PARTIALLY_FILLED", "FILLED", "EXPIRED") or expired_not_buyed:
                 return "Cannot buy %s for %s. Order status: %s" % (bcoin, opcoin, order['status'])
         
             return (float(order['executedQty']), bcoin, float(order['cummulativeQuoteQty']), opcoin)
@@ -94,9 +101,10 @@ class BinanceAPI:
 
             if order.get('msg') is not None:
                 return "Cannot sell %s for %s. Reason: %s" % (scoin, bcoin, order['msg'])
-            if order.get('status') not in ("PARTIALLY_FILLED", "FILLED"):
+            expired_not_selled = order.get('status') == "EXPIRED" and float(order['executedQty']) == 0.0
+            if order.get('status') not in ("PARTIALLY_FILLED", "FILLED", "EXPIRED") or expired_not_selled:
                 return "Cannot sell %s for %s. Order status: %s" % (scoin, bcoin, order['status'])
-
+            
             return (float(order['cummulativeQuoteQty']), bcoin, float(order['executedQty']), scoin)
         elif bcoin + scoin in self.COINS_SYMBOLS:
             if ordertype == self.OrderType.MARKET_QUANTITY:

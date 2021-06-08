@@ -8,7 +8,7 @@ if __name__ == "__main__":
     while True:
         print("\n".join(client.get_wallet()))
         print("Open orders: ")
-        print(client.get_open_orders())
+        print(client.get_open_orders_in_str())
         inp = "Do you want BUY_AMMOUNT(ba), BUY_FOR(bf), SELL_AMMOUNT(sa), SELL_FOR(sf), GET_PRICE(gp), "
         input_text = inp + "LIMIT_BUY(lb), LIMIT_SELL(ls), CANCEL_ALL(ca), GET_COIN_AMMOUNT(gc): "
         operation = input(input_text)
