@@ -2,5 +2,6 @@ __pycache__/
 .DS_Store
 *.py[cod]
 *$py.class
+*.session*
 spot_test_network_keys
 chatids
