@@ -8,8 +8,8 @@ from urllib.parse import urlencode
 
 class BinanceAPI:
     
-    BASE_URL = "https://testnet.binance.vision/api/v1"
-    BASE_URL_V3 = "https://testnet.binance.vision/api/v3"
+    BASE_URL = "https://api.binance.com/api/v1"
+    BASE_URL_V3 = "https://api.binance.com/api/v3"
     COINS_SYMBOLS = frozenset()
     TICK_STEP_DICT = dict()
 
