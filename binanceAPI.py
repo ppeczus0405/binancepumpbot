@@ -22,14 +22,58 @@ class BinanceAPI:
     COINS_SYMBOLS = frozenset()
     TICK_STEP_DICT = dict()
 
-    def __init__(self, key, secret, timeout=20, verify=True):
+    def __init__(self, header, timeout=20, verify=True):
         self.req_timeout = timeout
         self.req_verify = verify
-        self.key = key
-        self.secret = secret
         self.headers = dict()
         self.__fill_symbols_dicts()
-        self.__process_template(config.binance_header)
+        self.__process_template(header)
+
+    def create_market_order(self, symbol, side, size=0, funds=0):
+        if size > 0:
+            order_params = self._order(symbol, side, OrderType.MARKET, size=size)
+        else:
+            order_params = self._order(symbol, side, OrderType.MARKET, funds=funds)
+        url = "%s/%s" % (BinanceAPI.BASE_URL, "bapi/mbx/v1/private/mbxgateway/order/place")
+        response = self._post(url, order_params)
+        if not response['success']:
+            return str(response['message'])
+        return float(response['data']['executedQty']), float(response['data']['cummulativeQuoteQty'])
+
+    def create_limit_order(self, symbol, side, size, price):
+        order_params = self._order(symbol, side, OrderType.LIMIT, size=size, price=price)
+        url = "%s/%s" % (BinanceAPI.BASE_URL, "bapi/mbx/v1/private/mbxgateway/order/place")
+        response = self._post(url, order_params)
+        if not response['success']:
+            return str(response['message'])
+        return int(response['data']['orderId'])
+
+    def delete_order(self, symbol, order_id):
+        params = {"symbols": [symbol], "orderIds": [order_id]}
+        url = "%s/%s" % (BinanceAPI.BASE_URL, "bapi/mbx/v1/private/mbxgateway/order/del")
+        self._post(url, params)
+
+    def get_symbol_price(self, symbol):
+        url = "%s/%s" % (BinanceAPI.BASE_URL, "api/v3/ticker/price")
+        params = {"symbol": symbol}
+        return float(self._get(url, params)['price'])
+
+    def get_account_overview(self):
+        url = "%s/%s" % (BinanceAPI.BASE_URL, "bapi/asset/v3/private/asset-service/asset/get-user-asset")
+        response = self._post(url)
+        result_dict = dict()
+        if response['success']:
+            for asset_dict in response['data']:
+                result_dict[asset_dict['asset']] = float(asset_dict['free'])
+        return result_dict
+
+    def get_coin_amount(self, coin):
+        url = "%s/%s" % (BinanceAPI.BASE_URL, "bapi/asset/v3/private/asset-service/asset/get-user-asset")
+        params = {"asset": coin}
+        response = self._post(url, params)
+        if response['success'] and response['data']:
+            return float(response['data'][0]['free'])
+        return 0.0
 
     def _get(self, url, params={}):
         request_headers = dict()
@@ -41,16 +85,8 @@ class BinanceAPI:
     def _post(self, url, params={}):
         request_headers = dict()
         request_headers.update(self.headers)
-        return requests.post(url, headers=request_headers, json=json.dumps(params),
+        return requests.post(url, headers=request_headers, json=params,
                              verify=self.req_verify, timeout=self.req_timeout).json()
-
-    def market_order(self, symbol, side, size=0, funds=0):
-        if size > 0:
-            order_params = self._order(symbol, side, OrderType.MARKET, size=size)
-        else:
-            order_params = self._order(symbol, side, OrderType.MARKET, funds=funds)
-        url = "%s/%s" % (BinanceAPI.BASE_URL, "/bapi/mbx/v1/private/mbxgateway/order/place")
-        return self._post(url, order_params)
 
     def _order(self, symbol, side, order_type, size=0, funds=0, price=0):
         params = dict()
@@ -72,7 +108,8 @@ class BinanceAPI:
         return params
 
     def _fix_value_to_pass_filters(self, val, correction):
-        val = str(val)
+        if type(val) is float:
+            val = "%0.8f" % val
         dot = val.find('.')
         if dot == -1:
             return val + '.' + '0' * (len(correction) - 2)
